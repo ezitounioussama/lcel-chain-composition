@@ -225,3 +225,20 @@ The cap is enforced in code (`subquestions[:3]`), not left to the prompt. The pr
 ---
 
 Author: **Oussama Ezitouni**
+
+---
+
+# The written answer (checkpoint deliverable, 150 words)
+
+Three pipes build the chain. `decompose_prompt | strict_model` turns a template and a model into
+one Runnable. `answer_prompt | answer_model` does the same for the answering step.
+`format_runnable | combine_prompt | strict_model` chains a plain Python function into a prompt and
+a model. The four stages then compose into one object:
+`decomposer | parse_subq | run_answers | combiner`, invoked with a single call.
+
+`RunnableLambda` is what lets ordinary functions — regex parsers — sit in the pipe as equals.
+
+`.batch()` sends all sub-questions at once instead of looping. Against a hosted API that is a real
+win: each call is waiting on someone else's servers, so the waits overlap. Measured against a
+**local** model it gave 0.85x — no remote wait exists, and one model instance already saturates
+this machine. Raising `OLLAMA_NUM_PARALLEL` to 4 changed nothing, confirming compute is the limit.
