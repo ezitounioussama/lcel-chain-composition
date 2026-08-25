@@ -1,0 +1,173 @@
+
+==================================================================================
+SETUP
+==================================================================================
+  Model    : llama3.2:3b via ChatOllama (local)
+  Pipeline : decomposer | parse_subq | run_answers | combiner
+  Note     : ChatOllama replaces ChatOpenAI from the brief — no API key here.
+             Both are Runnables, so the LCEL composition is unchanged.
+
+==================================================================================
+QUESTION 1: How can I reduce latency in a web app that serves ML predictions?
+==================================================================================
+
+1. Decomposed sub-questions (raw model output)
+----------------------------------------------------------------------------------
+  1. What are the primary causes of latency in a web app serving ML predictions?
+  2. How can I optimize the ML model and data processing pipeline to reduce latency?
+  3. Are there any specific web app architecture or server-side optimizations that can help reduce latency?
+
+   Parsed into 3 sub-questions (capped at 3)
+----------------------------------------------------------------------------------
+  1. What are the primary causes of latency in a web app serving ML predictions?
+  2. How can I optimize the ML model and data processing pipeline to reduce latency?
+  3. Are there any specific web app architecture or server-side optimizations that can help reduce latency?
+
+2. Sub-answers (plain text blocks: Answer + Steps)
+----------------------------------------------------------------------------------
+
+  [1] Answer: Insufficient resources, network connectivity issues, and high computational complexity.
+      Steps:
+        - Insufficient resources (e.g., CPU, memory, or GPU) can lead to slow processing times and latency.
+        - Network connectivity issues, such as high latency or packet loss, can also cause delays in data transmission.
+        - High computational complexity, including large model sizes or complex algorithms, can result in prolonged processing times and increased latency.
+
+  [2] Answer: Use techniques like model pruning, quantization, and knowledge distillation to reduce model size and complexity, and leverage data parallelism, model parallelism, and distributed training to speed up data processing.
+      Steps:
+        - Optimize model architecture and hyperparameters for efficient computation.
+        - Implement data parallelism and model parallelism to distribute computation across multiple GPUs or nodes.
+        - Use knowledge distillation to transfer knowledge from a large pre-trained model to a smaller one.
+        - Leverage data caching, batch processing, and asynchronous processing to reduce data loading and processing times.
+        - Monitor and analyze latency bottlenecks in the pipeline to identify areas for improvement.
+
+  [3] Answer: Caching and Content Delivery Networks (CDNs) can significantly reduce latency.
+      Steps:
+        - Implement caching mechanisms (e.g., Redis, Memcached) to store frequently accessed data.
+        - Utilize Content Delivery Networks (CDNs) to distribute static assets across multiple servers worldwide, reducing the distance between users and resources.
+
+3. Final synthesis (three lines from the combiner)
+----------------------------------------------------------------------------------
+  Final Answer: Insufficient resources, network connectivity issues, and high computational complexity can cause delays in data processing, but techniques like model pruning, quantization, and knowledge distillation, as well as caching and Content Delivery Networks (CDNs), can significantly reduce latency.
+  Key points: - Insufficient resources and high computational complexity can cause delays; - Caching and CDNs can reduce latency; - Techniques like model pruning, quantization, and knowledge distillation can optimize model size and complexity.
+  Confidence: Medium
+
+Stage timings
+----------------------------------------------------------------------------------
+  decompose :   5.31s
+  answer    :  23.91s   (batched, 3 sub-questions)
+  combine   :  20.97s
+
+==================================================================================
+QUESTION 2: How should a small team choose between SQLite and PostgreSQL for a new product?
+==================================================================================
+
+1. Decomposed sub-questions (raw model output)
+----------------------------------------------------------------------------------
+  1. What are the key differences between SQLite and PostgreSQL that would influence the choice?
+  2. What are the performance and scalability requirements for the new product, and how do SQLite and PostgreSQL compare in these areas?
+  3. What are the development and maintenance costs associated with each database, and how do these factors impact the choice?
+
+   Parsed into 3 sub-questions (capped at 3)
+----------------------------------------------------------------------------------
+  1. What are the key differences between SQLite and PostgreSQL that would influence the choice?
+  2. What are the performance and scalability requirements for the new product, and how do SQLite and PostgreSQL compare in these areas?
+  3. What are the development and maintenance costs associated with each database, and how do these factors impact the choice?
+
+2. Sub-answers (plain text blocks: Answer + Steps)
+----------------------------------------------------------------------------------
+
+  [1] Answer: SQLite and PostgreSQL differ in scalability, complexity, and licensing.
+      Steps:
+        - SQLite is a self-contained, serverless database ideal for small to medium-sized applications with limited data.
+        - PostgreSQL is a more scalable, feature-rich database suitable for large-scale applications with complex data needs, requiring more administrative effort.
+
+  [2] Answer: High performance and scalability are crucial for the new product, requiring databases that can handle large amounts of data and high traffic.
+      Steps:
+        - **Assess current data volume and traffic**: Determine the expected data volume and traffic to identify performance and scalability requirements.
+        - **Evaluate database capabilities**: Research SQLite and PostgreSQL's performance and scalability features, such as indexing, caching, and connection pooling.
+        - **Compare database architectures**: Analyze the database architectures of SQLite and PostgreSQL, including their storage engines and query execution plans.
+        - **Test and benchmark databases**: Perform thorough testing and benchmarking to compare the performance and scalability of SQLite and PostgreSQL.
+        - **Choose the best database**: Select the database that best meets the performance and scalability requirements of the new product.
+
+  [3] Answer: The development and maintenance costs of a database vary depending on the type, complexity, and scalability requirements.
+      Steps:
+        - Research the costs of each database type (e.g., relational, NoSQL, graph) to determine which one best fits your project's needs.
+        - Evaluate the development time and resources required for each database, considering factors like data modeling, schema design, and query optimization.
+        - Assess the ongoing maintenance costs, including licensing fees, server costs, and personnel expenses, to ensure the chosen database aligns with your budget and scalability goals.
+        - Weigh the trade-offs between development and maintenance costs to make an informed decision that balances performance, scalability, and budget constraints.
+
+3. Final synthesis (three lines from the combiner)
+----------------------------------------------------------------------------------
+  Final Answer: SQLite and PostgreSQL differ in scalability, complexity, and licensing, with PostgreSQL being more suitable for large-scale applications and high performance requirements.
+  Key points: 
+  - PostgreSQL is more scalable and feature-rich than SQLite, making it suitable for large-scale applications.
+  - SQLite is ideal for small to medium-sized applications with limited data.
+  - The choice between SQLite and PostgreSQL depends on the specific needs of the project, including performance, scalability, and licensing requirements.
+  Confidence: Medium
+
+Stage timings
+----------------------------------------------------------------------------------
+  decompose :   5.99s
+  answer    :  26.91s   (batched, 3 sub-questions)
+  combine   :  23.64s
+
+==================================================================================
+WHY .batch() MATTERS — MEASURED
+==================================================================================
+
+  Answering the same 3 sub-questions:
+    one at a time (.invoke in a loop) :  20.35s
+    together (.batch)                 :  23.91s
+    speedup                           :   0.85x
+
+  No real gain — and that is the honest result on this setup, not a broken test.
+
+  The usual explanation for batch() is that model calls are I/O-bound, so
+  overlapping the waiting is free. That holds for a HOSTED api, where each call
+  waits on someone else's servers. It does not hold here: the model runs on this
+  machine, so there is no remote wait to overlap. One llama3.2:3b instance
+  already saturates the local compute, and three concurrent requests just
+  time-slice the same hardware.
+
+  Checked rather than assumed: the server reported OLLAMA_NUM_PARALLEL: 1, so
+  requests were queueing server-side. Restarting with OLLAMA_NUM_PARALLEL=4 and
+  re-measuring gave 0.92x — still no gain. That rules out queue depth and leaves
+  compute as the limit.
+
+  batch() stays in the pipeline for two reasons that are not speed: the code is
+  clearer than a hand-written loop, and it is already the right shape for the day
+  the model moves behind an API, where the speedup is real.
+
+==================================================================================
+RunnableParallel — DIFFERENT CHAINS, SAME INPUT, AT ONCE
+==================================================================================
+
+  Three branches ran together in 11.42s, returning one dict:
+
+  restated     : How can I make a web app that uses machine learning predictions load faster and respond more quickly to user requests?
+  risk         : The biggest risk when reducing latency in a web app that serves ML predictions is that overly optimized models or algori
+  subquestions : 3 items
+
+  batch()          = one chain, many inputs
+  RunnableParallel = many chains, one input
+  Both return everything at once; neither needs threads written by hand.
+
+==================================================================================
+THE ONE-LINER: pipeline.invoke() RETURNS ONLY THE FINAL MESSAGE
+==================================================================================
+
+  pipeline.invoke({'question': 'What makes a good unit test?'})   [36.44s]
+
+  Final Answer: A good unit test is independent, isolated, and focused on a specific piece of functionality, ensuring code coverage and reliability by thoroughly testing individual units of code.
+  Key points: 
+  - Isolate the unit being tested from the rest of the system.
+  - Use mocking or stubbing to control dependencies and ensure the test is reliable.
+  - Write test cases that cover all possible execution paths in the code.
+  Confidence: high
+
+  Four stages, one call. The intermediate sub-questions and sub-answers are
+  produced but not returned — run_with_trace() exists only to show them.
+
+==================================================================================
+Done.
+==================================================================================
