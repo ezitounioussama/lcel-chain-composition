@@ -98,7 +98,7 @@ def main():
   The usual explanation for batch() is that model calls are I/O-bound, so
   overlapping the waiting is free. That holds for a HOSTED api, where each call
   waits on someone else's servers. It does not hold here: the model runs on this
-  machine, so there is no remote wait to overlap. One llama3.2:3b instance
+  machine, so there is no remote wait to overlap. One local model instance
   already saturates the local compute, and three concurrent requests just
   time-slice the same hardware.
 
