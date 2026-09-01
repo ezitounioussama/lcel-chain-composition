@@ -1,6 +1,6 @@
 # Results — LCEL Pipeline on Two Questions
 
-Captured from a real run. Model `llama3.2:3b` via `ChatOllama`, local Ollama.
+Captured from a real run. Model `qwen3:8b` via `ChatOllama(reasoning=False)`, local Ollama.
 Raw log: [`docs/output.txt`](docs/output.txt).
 
 ```bash
@@ -70,7 +70,7 @@ caching, CDNs, and data compression can help reduce network latency and improve 
 Confidence: Medium
 ```
 
-Stage timings: decompose 7.28s · answer 21.19s (3 batched) · combine 18.78s
+Stage timings: decompose 10.09s · answer 26.00s (3 batched) · combine 16.61s
 
 ---
 
@@ -138,9 +138,9 @@ The brief asks to emphasise why batching matters. Measured on this setup, it did
 
 ```
 Answering the same 3 sub-questions:
-  one at a time (.invoke in a loop) :  20.35s
-  together (.batch)                 :  23.91s
-  speedup                           :   0.85x
+  one at a time (.invoke in a loop) :  26.12s
+  together (.batch)                 :  26.00s
+  speedup                           :   1.00x
 ```
 
 That is the honest result, not a broken test, and the mechanism is worth understanding.
@@ -148,12 +148,12 @@ That is the honest result, not a broken test, and the mechanism is worth underst
 The usual explanation is that model calls are **I/O-bound**, so overlapping the waiting is free.
 That holds for a **hosted** API, where every call waits on someone else's servers and ten requests
 can be in flight at once. It does not hold here: the model runs on **this** machine, so there is no
-remote wait to overlap. One `llama3.2:3b` instance already saturates the local compute, and three
+remote wait to overlap. One local model instance already saturates the compute, and three
 concurrent requests just time-slice the same hardware.
 
 **Checked rather than assumed.** The server reported `OLLAMA_NUM_PARALLEL: 1`, so requests were
 queueing server-side — a plausible culprit. Restarting with `OLLAMA_NUM_PARALLEL=4` and
-re-measuring gave **0.92x**, still no gain. That rules out queue depth and leaves compute as the
+re-measuring gave **0.92x** (on llama3.2:3b), still no gain. That rules out queue depth and leaves compute as the
 limit.
 
 `.batch()` stays in the pipeline for two reasons that are not speed: the code is clearer than a
@@ -165,7 +165,7 @@ where the speedup is real.
 # `RunnableParallel` — a different kind of concurrency
 
 ```
-Three branches ran together in 12.27s, returning one dict:
+Three branches ran together in 19.30s, returning one dict:
 
 restated     : How can I make a web app that uses machine learning predictions load faster
                and respond more quickly to user input?
@@ -186,7 +186,7 @@ Both hand back everything at once, and neither needs a thread written by hand.
 # The whole thing as one call
 
 ```
-pipeline.invoke({'question': 'What makes a good unit test?'})   [47.75s]
+pipeline.invoke({'question': 'What makes a good unit test?'})   [48.45s]
 
 Final Answer: A good unit test is independent, fast, reliable, and focused on a specific piece
 of functionality, ensuring code coverage and reliability by thoroughly testing individual units
@@ -240,5 +240,5 @@ a model. The four stages then compose into one object:
 
 `.batch()` sends all sub-questions at once instead of looping. Against a hosted API that is a real
 win: each call is waiting on someone else's servers, so the waits overlap. Measured against a
-**local** model it gave 0.85x — no remote wait exists, and one model instance already saturates
+**local** model it gave 1.00x on qwen3:8b (0.85x on llama3.2:3b) — no remote wait exists, and one model instance already saturates
 this machine. Raising `OLLAMA_NUM_PARALLEL` to 4 changed nothing, confirming compute is the limit.

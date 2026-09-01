@@ -4,7 +4,7 @@ LCEL pipeline: decompose a question, answer the parts, synthesize a final answer
     decomposer | parse_subq | run_answers | combiner
 
 Built with the brief's structure. One substitution: `ChatOllama` in place of
-`ChatOpenAI`, because there is no OpenAI key on this machine and llama3.2:3b runs
+`ChatOpenAI`, because there is no OpenAI key on this machine and qwen3:8b runs
 locally. That swap is the point of LCEL — a chat model is a Runnable, so any
 chat model drops into the same pipe with no other change.
 
@@ -18,12 +18,12 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_ollama import ChatOllama
 
-MODEL = "llama3.2:3b"
+MODEL = "qwen3:8b"
 
 # Two models, two temperatures. Decomposing and synthesizing want determinism;
 # answering gets a little room, matching the brief.
-strict_model = ChatOllama(model=MODEL, temperature=0.0, num_predict=200)
-answer_model = ChatOllama(model=MODEL, temperature=0.2, num_predict=200)
+strict_model = ChatOllama(model=MODEL, reasoning=False, temperature=0.0, num_predict=200)
+answer_model = ChatOllama(model=MODEL, reasoning=False, temperature=0.2, num_predict=200)
 
 
 # ---------------------------------------------------------------------------
@@ -111,10 +111,10 @@ def run_answers(subquestions):
     Measured honestly, that bought nothing here: 21.39s sequential against
     21.19s batched, a 1.01x "speedup". The usual explanation — the calls are
     I/O-bound, so overlapping the waits is free — does not hold against a LOCAL
-    model, because there is no remote wait. One llama3.2:3b instance saturates
+    model, because there is no remote wait. One local model instance saturates
     this machine's compute, so three concurrent requests just time-slice the same
     hardware and the total work is unchanged. Raising OLLAMA_NUM_PARALLEL from 1
-    to 4 did not help either (0.92x), which confirms it is compute-bound rather
+    to 4 did not help either (0.92x on llama3.2:3b), which confirms it is compute-bound rather
     than a queue-depth limit.
 
     batch() earns its keep against a hosted API, where each call really is
